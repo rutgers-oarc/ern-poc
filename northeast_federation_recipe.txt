@@ -2,7 +2,7 @@ The cast:
 
 ufp.hpc.rutgers.edu - slurm database, xrootd redirector, xrootd data server, ldap server, ganglia web, perfsonar web
 
-mace - 6-node physical cluster at Rutgers
+ mace - 6-node physical cluster at Rutgers
  mace - login node, scheduler, local nfs
  mace[1-5] - compute nodes
 
