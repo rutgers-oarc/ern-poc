@@ -1,0 +1,285 @@
+The cast:
+
+ufp.hpc.rutgers.edu - slurm database, xrootd redirector, xrootd data server, ldap server, ganglia web, perfsonar web
+
+mace - 6-node physical cluster at Rutgers
+ mace - login node, scheduler, local nfs
+ mace[1-5] - compute nodes
+
+~/fedconfig - site-specific config files - generate or get from Rutgers and modify - for example the chrony.conf includes Rutgers name servers.
+
+OS: Centos 7.4
+OpenHPC recipe: 1.3.4
+Scheduler: slurm 17.11
+Filesystem: xrootdfs with local nfs export
+Authz, authn: ldap, replace with shibboleth
+Other: ganglia, perfsonar
+Eval: openafs, stashcache, kubernetes, singularity
+
+Notes:
+Install ohpc-slurm-client and ohpc-slurm-server to get all packages, check directory creation and permissions
+
+# bare metal install
+# install centos 7.4 minimal
+# set up ssh keys from management
+yum -y update
+yum -y groupinstall “Infrastructure Server”
+yum -y groupinstall "Hardware Monitoring Utilities" "Performance Tools" "Development Tools" "Network File System Client" "Console Internet Tools" "Networking Tools" "System Administration Tools" "System Management"
+cp -y ~/fedconfig/hosts /etc
+cp -y ~/fedconfig/hosts.allow /etc
+cp -y ~/fedconfig/hosts.deny /etc
+yum -y install http://build.openhpc.community/OpenHPC:/1.3/CentOS_7/x86_64/ohpc-release-1.3-1.el7.x86_64.rpm
+yum -y update
+yum -y install ohpc-base
+cp ~/fedconfig/chrony.conf /etc
+systemctl restart chronyd
+yum -y install nmap iptraf-ng iperf3 hdparm msr-tools mlocate trafshow yum-utils
+# customize
+
+# mace
+# follow bare metal install for mace and mace1-5
+firewall-cmd --list-all-zones
+firewall-cmd --zone=public --remove-service=dhcpv6-client
+firewall-cmd --zone=public --remove-service=dhcpv6-client --permanent
+firewall-cmd --zone=public --remove-service=ssh
+firewall-cmd --zone=public --remove-service=ssh --permanent
+firewall-cmd --info-zone=public
+# add internal interface to trusted zone
+# ZONE=trusted
+vi /etc/sysconfig/network-scripts/ifcfg-enp6s4f0
+firewall-cmd --zone=public --add-rich-rule='rule family="ipv4" source address="172.16.94.0/24" accept'
+firewall-cmd --zone=public --add-rich-rule='rule family="ipv4" source address="172.16.94.0/24" accept' --permanent
+firewall-cmd --zone=public --add-rich-rule='rule family="ipv4" source address="172.16.74.64/26" accept'
+firewall-cmd --zone=public --add-rich-rule='rule family="ipv4" source address="172.16.74.64/26" accept' --permanent
+ssh-keygen
+ssh-copy-id mace1
+ssh-copy-id mace2
+ssh-copy-id mace3
+ssh-copy-id mace4
+ssh-copy-id mace5
+pdsh -w mace[1-5] "uptime"	
+echo "net.ipv4.ip_forward = 1" >> /etc/sysctl.conf
+sysctl -p /etc/sysctl.conf
+firewall-cmd --zone=public --add-masquerade
+firewall-cmd --zone=public --add-masquerade --permanent
+yum groupinstall "Compatibility Libraries" "Platform Development"
+
+
+# ldap
+yum install sssd openldap-clients
+authconfig --updateall --enableldap --enableldapauth --ldapserver=ldap://ufp.hpc.rutgers.edu:389 --ldapbasedn=dc=ufp,dc=hpc,dc=rutgers,dc=edu --enableldaptls --enableldapstarttls
+cp ~/fedconfig/cacert.pem /etc/openldap/cacerts
+cacertdir_rehash /etc/openldap/cacerts/
+systemctl restart sssd
+id babbott
+# create home dirs
+yum install oddjob-mkhomedir
+systemctl enable oddjobd
+systemctl start oddjobd
+authconfig --enablemkhomedir --update
+
+# slurm, munge
+# check that user are already in ldap
+id slurm
+id munge
+yum install ohpc-slurm-server
+cp ~/fedconfig/munge.key-ufp /etc/munge/munge.key
+systemctl enable munge
+systemctl start munge
+# the slurm packages should create these - look into
+mkdir /var/log/slurm
+mkdir /var/lib/slurm
+mkdir /var/run/slurm
+mkdir /var/spool/slurmd
+chown slurm:slurm /etc/slurm
+chown slurm:slurm /var/log/slurm
+chown slurm:slurm /var/lib/slurm
+chown slurm:slurm /var/run/slurm
+chown slurm:slurm /var/spool/slurm
+# generate a slurm.conf via the configurator or copy and modify ~/fedconfig/slurm.conf-mace
+# “main” partition, linear select, backfill - compare to slurm.conf-ufp
+#https://slurm.schedmd.com/configurator.html
+# defaults should be fine except for slurmdbd and fed_display
+# add this line for federated display:
+#FederationParameters=fed_display
+# and these lines for slurmdbd:
+#AccountingStorageType=accounting_storage/slurmdbd
+#AccountingStorageHost=ufp.hpc.rutgers.edu
+# mace1-5 will access mace via the 192 interface, so either change mace from 128 to 192
+# in /etc/hosts, or set DebugFlags=NO_CONF_HASH in slurm.conf
+#DebugFlags=NO_CONF_HASH
+vi ~/fedconfig/slurm.conf-mace
+vi ~/fedconfig/slurm.conf-mace-compute
+# notify Bill of the cluster name and scheduler ip address,
+# wait for confirmation that ufp is modified
+# send ssh keys
+# and usernames to set up in ldap
+cp ~/fedconfig/slurm.conf-mace /etc/slurm/slurm.conf
+vi /etc/slurm/slurm.conf
+cp ~/fedconfig/cgroup.conf /etc/slurm
+chown slurm:slurm /etc/slurm/*
+systemctl enable slurmctld
+systemctl start slurmctld
+
+# nfs - mace exports /home and /xrootd to compute nodes
+#/home   192.168.0.0/255.255.0.0(rw,fsid=0)
+vi /etc/exports
+exportfs -r
+exportfs
+systemctl enable nfs-server
+systemctl start nfs-server
+
+
+# xrootd
+# check that xrootd user is already in ldap
+id xrootd
+yum install xrootd-client xrootd-client-libs xrootd-fuse
+mkdir /var/log/xrootd
+chown -R xrootd:xrootd /var/log/xrootd/
+cp ~/fedconfig/xrootd.key /etc/xrootd
+chown -R xrootd:xrootd /etc/xrootd
+#xrootdfs /xrootd fuse rdr=xroot://ufp.hpc.rutgers.edu:1094//xdata/,uid=xrootd,sss=/etc/xrootd/xrootd.key 0 0
+vi /etc/fstab
+mkdir /xrootd
+mount /xrootd
+ls -al /xrootd
+su - babbott
+cd /xrootd/users/babbott
+touch test
+# add to nfs
+#/xrootd   192.168.0.0/255.255.0.0(rw,fsid=1)
+vi /etc/exports
+exportfs -r
+Exportfs
+
+# ssh
+# add user ssh keys - either ssh-keygen or create .ssh and authorized_keys
+su - babbott
+#ssh-keygen
+mkdir .ssh
+chmod 700 .ssh
+# paste pub key
+vi .ssh/authorized_keys
+exit
+
+# perfsonar
+yum install http://software.internet2.edu/rpms/el7/x86_64/main/RPMS/perfSONAR-repo-0.8-1.noarch.rpm
+yum clean all
+yum install perfsonar-testpoint
+yum install perfsonar-toolkit-servicewatcher
+yum install perfsonar-toolkit-sysctl
+yum install perfsonar-toolkit-systemenv-testpoint
+# auto updates
+systemctl enable yum-cron
+systemctl start yum-cron
+systemctl start pscheduler-scheduler
+systemctl start pscheduler-runner
+systemctl start pscheduler-archiver
+systemctl start pscheduler-ticker
+systemctl start owamp-server
+#systemctl start perfsonar-lsregistrationdaemon
+#systemctl start bwctl-server
+# switch to ren limits
+cd /etc/pscheduler
+mv limits.conf limits.conf-orig
+cp /usr/share/doc/pscheduler/limit-examples/identifier-ip-cidr-list-url limits.conf
+chown root:pscheduler limits.conf
+pscheduler validate-limits
+cp ~/fedconfig/perfsonar.xml /etc/firewalld/services/
+firewall-cmd --reload
+
+# ganglia
+yum install ganglia-gmond-ohpc
+# cluster, mute/deaf, port
+cp ~/fedconfig/gmond.conf-mace-login /etc/ganglia/gmond.conf
+systemctl enable gmond
+systemctl start gmond
+
+# firewall settings
+# all from local subnet - replace with yours
+firewall-cmd --zone=public --add-rich-rule='rule family="ipv4" source address="128.6.226.160/27" accept'
+# ssh, slurm, perfsonar from other member sites
+firewall-cmd --zone=public --add-rich-rule='rule family="ipv4" source address="192.69.102.192/27" port port=22 protocol=tcp accept'
+firewall-cmd --zone=public --add-rich-rule='rule family="ipv4" source address="192.69.102.192/27" port port=6817 protocol=tcp accept'
+firewall-cmd --zone=public --add-rich-rule='rule family="ipv4" source address="192.69.102.192/27" service name=perfsonar accept'
+# ganglia from central
+firewall-cmd --zone=public --add-rich-rule='rule family="ipv4" source address="128.6.226.160/27" port port=8649 protocol=tcp accept'
+firewall-cmd --runtime-to-permanent
+
+# user job
+yum install boinc-client boinc-client-doc
+
+
+
+
+# complete mace1-5 (bare metal and mace keys already done)
+# commands run from mace
+# do manually for the prompts
+ssh mace1
+yum -y groupinstall "Compatibility Libraries" "Platform Development"
+yum install slurm-slurmd-ohpc
+exit
+# repeat for mace2-5
+# copy over files
+for i in {1..5};do scp ~/fedconfig/hosts mace$i:/etc;done
+for i in {1..5};do scp ~/fedconfig/hosts.allow mace$i:/etc;done
+for i in {1..5};do scp ~/fedconfig/hosts.deny mace$i:/etc;done
+pdsh -w mace[1-5] 'systemctl disable firewalld'
+
+# nfs mounts - do on each compute node or copy a master fstab
+ssh mace1
+# comment out local /home if present, add nfs home
+#mace.local:/home /home                   nfs     defaults        0 0
+vi /etc/fstab
+exit
+# repeat for mace2-5
+# back to mace
+pdsh -w mace[1-5] 'umount /home;mount /home'
+for i in {1..5};do echo mace$i;scp ~/fedconfig/munge.key-ufp mace$i:/etc/munge/munge.key;done
+pdsh -w mace[1-5] ‘chown -R munge:munge /etc/munge’
+pdsh -w mace[1-5] ‘mkdir /etc/slurm;chown -R slurm:slurm /etc/slurm’
+for i in {1..5};do echo mace$i;scp ~/fedconfig/slurm.conf-mace-compute mace$i:/etc/slurm/slurm.conf;done
+for i in {1..5};do echo mace$i;scp ~/fedconfig/cgroup.conf mace$i:/etc/slurm;done
+pdsh -w mace[1-5] 'systemctl start munge'
+pdsh -w mace[1-5] 'chown -R slurm:slurm /etc/slurm'
+pdsh -w mace[1-5] 'mkdir /var/log/slurm;chown -R slurm:slurm /var/log/slurm'
+pdsh -w mace[1-5] ‘rm -rf /var/spool/slurm/*;mkdir /var/spool/slurm/slurmd;chown slurm:slurm /var/spool/slurm/slurmd’
+pdsh -w mace[1-5] 'systemctl enable slurmd'
+pdsh -w mace[1-5] 'systemctl start slurmd'
+
+
+# xrootd
+# on mace1-5
+ssh mace1
+#mace.local:/xrootd /xrootd		nfs	defaults	0 0
+vi /etc/fstab
+exit
+# back to mace
+pdsh -w mace[1-5] ‘mkdir /xrootd;mount /xrootd;ls /xrootd’
+
+
+# ganglia
+pdsh -w mace[1-5] 'yum -y install ganglia-gmond-ohpc'
+for i in {1..5};do echo mace$i;scp ~/fedconfig/gmond.conf-mace-compute mace$i:/etc/ganglia/gmond.conf;done
+pdsh -w mace[1-5] 'systemctl enable gmond'
+pdsh -w mace[1-5] 'systemctl start gmond'
+
+# ldap
+pdsh -w mace[1-5] 'yum -y install sssd openldap-clients'
+pdsh -w mace[1-5] ‘mkdir /etc/openldap/cacerts’
+for i in {1..5};do echo mace$i;scp ~/fedconfig/cacert.pem mace$i:/etc/openldap/cacerts;ssh mace$i “cacertdir_rehash /etc/openldap/cacerts/”;done
+pdsh -w mace[1-5] 'authconfig --updateall --enableldap --enableldapauth --ldapserver=ldap://ufp.hpc.rutgers.edu:389 --ldapbasedn=dc=ufp,dc=hpc,dc=rutgers,dc=edu --enableldaptls --enableldapstarttls'
+pdsh -w mace[1-5] ‘systemctl restart sssd’
+pdsh -w mace[1-5] ‘id babbott’
+
+# confirm user can ssh from mace to mace1-5 without password
+su - babbott
+for i in {1..5};do ssh mace$i “uptime”;done
+exit
+
+# user job
+pdsh -w mace[1-5] ‘yum -y install boinc-client boinc-client-doc’
+
+
+
+
