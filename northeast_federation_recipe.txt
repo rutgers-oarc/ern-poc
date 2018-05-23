@@ -3,8 +3,8 @@ The cast:
 ufp.hpc.rutgers.edu - slurm database, xrootd redirector, xrootd data server, ldap server, ganglia web, perfsonar web
 
 mace - 6-node physical cluster at Rutgers
- mace - login node, scheduler, local nfs
- mace[1-5] - compute nodes
+mace - login node, scheduler, local nfs
+mace[1-5] - compute nodes
 
 ~/fedconfig - site-specific config files - generate or get from Rutgers and modify - for example the chrony.conf includes Rutgers name servers.
 
@@ -16,20 +16,23 @@ Authz, authn: ldap, replace with shibboleth
 Other: ganglia, perfsonar
 Eval: openafs, stashcache, kubernetes, singularity
 
-Notes:
-Install ohpc-slurm-client and ohpc-slurm-server to get all packages, check directory creation and permissions
+Issues:
+xrootd won’t mount until ldap is ready
 
 # bare metal install
 # install centos 7.4 minimal
 # set up ssh keys from management
 yum -y update
-yum -y groupinstall “Infrastructure Server”
+# this one fails - did update do it already?  just skip it and install the other groups.
+#yum -y groupinstall “Infrastructure Server”
 yum -y groupinstall "Hardware Monitoring Utilities" "Performance Tools" "Development Tools" "Network File System Client" "Console Internet Tools" "Networking Tools" "System Administration Tools" "System Management" “Compatibility Libraries” “Platform Development”
 # customize the “local” part of hosts.allow and hosts to add management, monitoring, etc.
-cp -y ~/fedconfig/hosts /etc
-cp -y ~/fedconfig/hosts.allow /etc
-cp -y ~/fedconfig/hosts.deny /etc
-yum -y install http://build.openhpc.community/OpenHPC:/1.3/CentOS_7/x86_64/ohpc-release-1.3-1.el7.x86_64.rpm
+# y to overwrite prompt
+# skip these three for the compute nodes - do it once keys are set up from mace
+cp ~/fedconfig/hosts /etc
+cp ~/fedconfig/hosts.allow /etc
+cp ~/fedconfig/hosts.deny /etc
+yum -y install https://na01.safelinks.protection.outlook.com/?url=http%3A%2F%2Fbuild.openhpc.community%2FOpenHPC%3A%2F1.3%2FCentOS_7%2Fx86_64%2Fohpc-release-1.3-1.el7.x86_64.rpm&data=02%7C01%7Cericmars%40oarc.rutgers.edu%7C001a3cd57bd44909725108d5c06c1f70%7Cb92d2b234d35447093ff69aca6632ffe%7C1%7C1%7C636626492979197825&sdata=b0X9gyliwu3WEMS2LhSb2mqFUTFetnAJ7pfhH2pL6g8%3D&reserved=0
 yum -y update
 yum -y install ohpc-base
 sed -i s/SELINUX=enforcing/SELINUX=permissive/ /etc/selinux/config
@@ -65,7 +68,7 @@ ssh-copy-id mace2
 ssh-copy-id mace3
 ssh-copy-id mace4
 ssh-copy-id mace5
-pdsh -w mace[1-5] "uptime"	
+pdsh -w mace[1-5] "uptime"
 echo "net.ipv4.ip_forward = 1" >> /etc/sysctl.conf
 sysctl -p /etc/sysctl.conf
 
@@ -119,15 +122,17 @@ exportfs
 systemctl enable nfs-server
 systemctl start nfs-server
 
+
+
 # xrootd
 # check that xrootd user is already in ldap
 id xrootd
-yum install xrootd-client xrootd-client-libs xrootd-fuse
+yum -y install xrootd-client xrootd-client-libs xrootd-fuse
 mkdir /var/log/xrootd
 chown -R xrootd:xrootd /var/log/xrootd/
 cp ~/fedconfig/xrootd.key /etc/xrootd
 chown -R xrootd:xrootd /etc/xrootd
-#xrootdfs /xrootd fuse rdr=xroot://ufp.hpc.rutgers.edu:1094//xdata/,uid=xrootd,sss=/etc/xrootd/xrootd.key 0 0
+#xrootdfs /xrootd fuse rdr=xroot://ufp.hpc.rutgers.edu:1094//xdata/,uid=xrootd,sss=/etc/xrootd/xrootd.key,noauto 0 0
 vi /etc/fstab
 mkdir /xrootd
 mount /xrootd
@@ -151,7 +156,7 @@ ssh mace “uptime”
 exit
 
 # perfsonar
-yum install http://software.internet2.edu/rpms/el7/x86_64/main/RPMS/perfSONAR-repo-0.8-1.noarch.rpm
+yum -y install https://na01.safelinks.protection.outlook.com/?url=http%3A%2F%2Fsoftware.internet2.edu%2Frpms%2Fel7%2Fx86_64%2Fmain%2FRPMS%2FperfSONAR-repo-0.8-1.noarch.rpm&data=02%7C01%7Cericmars%40oarc.rutgers.edu%7C001a3cd57bd44909725108d5c06c1f70%7Cb92d2b234d35447093ff69aca6632ffe%7C1%7C1%7C636626492979197825&sdata=d8QRPSMe52fiwlGRSD62CPlBAA8vdgdgOAfxaSWd7UU%3D&reserved=0
 yum clean all
 yum install perfsonar-testpoint
 yum install perfsonar-toolkit-servicewatcher
@@ -165,6 +170,7 @@ systemctl start pscheduler-runner
 systemctl start pscheduler-archiver
 systemctl start pscheduler-ticker
 systemctl start owamp-server
+# not these
 #systemctl start perfsonar-lsregistrationdaemon
 #systemctl start bwctl-server
 # switch to ren limits
@@ -177,7 +183,7 @@ cp ~/fedconfig/perfsonar.xml /etc/firewalld/services/
 firewall-cmd --reload
 
 # ganglia
-yum install ganglia-gmond-ohpc
+yum -y install ganglia-gmond-ohpc
 # cluster, mute/deaf, port
 cp ~/fedconfig/gmond.conf-mace-login /etc/ganglia/gmond.conf
 systemctl enable gmond
@@ -205,22 +211,22 @@ yum install boinc-client boinc-client-doc
 for i in {1..5};do scp ~/fedconfig/hosts mace$i:/etc;done
 for i in {1..5};do scp ~/fedconfig/hosts.allow mace$i:/etc;done
 for i in {1..5};do scp ~/fedconfig/hosts.deny mace$i:/etc;done
-pdsh -w mace[1-5] “systemctl disable firewalld”
+pdsh -w mace[1-5] ‘systemctl disable firewalld’
 
 # ldap
 pdsh -w mace[1-5] 'yum -y install sssd openldap-clients'
 pdsh -w mace[1-5] ‘mkdir /etc/openldap/cacerts’
-for i in {1..5};do echo mace$i;scp ~/fedconfig/cacert.pem mace$i:/etc/openldap/cacerts;ssh mace$i “cacertdir_rehash /etc/openldap/cacerts/”;done
+for i in {1..5};do echo mace$i;scp ~/fedconfig/cacert.pem mace$i:/etc/openldap/cacerts;ssh mace$i ‘cacertdir_rehash /etc/openldap/cacerts/’;done
 pdsh -w mace[1-5] 'authconfig --updateall --enableldap --enableldapauth --ldapserver=ldap://ufp.hpc.rutgers.edu:389 --ldapbasedn=dc=ufp,dc=hpc,dc=rutgers,dc=edu --enableldaptls --enableldapstarttls'
 pdsh -w mace[1-5] ‘systemctl restart sssd’
 pdsh -w mace[1-5] ‘id babbott’
 
 # slurm
 # should be 20003, 20002
-pdsh -w mace[1-5] “id slurm;id munge”
-pdsh -w mace[1-5] “yum install ohpc-slurm-client ohpc-slurm-server”
+pdsh -w mace[1-5] ‘id slurm;id munge’
+pdsh -w mace[1-5] ‘yum -y install ohpc-slurm-client ohpc-slurm-server’
 for i in {1..5};do scp ~/fedconfig/munge.key-ufp mace$i:/etc/munge/munge.key;done
-pdsh -w mace[1-5] “systemctl restart munge”
+pdsh -w mace[1-5] ‘systemctl restart munge’
 for i in {1..5};do scp ~/fedconfig/slurm.conf-mace mace$i:/etc/slurm/slurm.conf;done
 pdsh -w mace[1-5] “systemctl enable slurmd;systemctl restart slurmd”
 
@@ -238,7 +244,7 @@ pdsh -w mace[1-5] 'umount /home;mount /home'
 # xrootd
 # on mace1-5
 ssh mace1
-#mace.local:/xrootd /xrootd		nfs	defaults	0 0
+#mace.local:/xrootd /xrootd        nfs    defaults    0 0
 vi /etc/fstab
 exit
 # back to mace
@@ -259,6 +265,3 @@ exit
 
 # user job
 pdsh -w mace[1-5] ‘yum -y install boinc-client boinc-client-doc’
-
-
-
