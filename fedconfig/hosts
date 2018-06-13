@@ -1,0 +1,63 @@
+127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4
+::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
+
+128.6.226.170	ufp.hpc.rutgers.edu ufp
+192.168.9.201	ufp.local
+
+192.168.9.202	mace.local
+128.6.226.171	mace.hpc.rutgers.edu mace
+192.168.9.203	mace1
+192.168.9.204	mace2
+192.168.9.205	mace3
+192.168.9.206	mace4
+192.168.9.207	mace5
+
+128.6.226.173	khan.hpc.rutgers.edu khan
+192.168.9.208	khan.local
+
+128.6.226.174	riker.hpc.rutgers.edu riker
+192.168.9.209	riker.local
+
+128.6.226.164	fenrir.hpc.rutgers.edu fenrir
+192.168.9.116	fenrir.local
+192.168.9.117	fenrir.storage
+
+128.6.226.166	vidar.hpc.rutgers.edu vidar
+192.168.9.115	vidar.local
+
+128.6.226.172	tyr.hpc.rutgers.edu tyr
+192.168.9.114	tyr.local
+
+192.168.9.1	tyr01
+192.168.9.2	tyr02
+192.168.9.3	tyr03
+192.168.9.4	tyr04
+192.168.9.5	tyr05
+192.168.9.6	tyr06
+192.168.9.7	tyr07
+192.168.9.8	tyr08
+192.168.9.9	tyr09
+192.168.9.10	tyr10
+192.168.9.11	tyr11
+192.168.9.12	tyr12
+192.168.9.13	tyr13
+192.168.9.14	tyr14
+192.168.9.15	tyr15
+192.168.9.16	tyr16
+192.168.9.17	tyr17
+192.168.9.18	tyr18
+192.168.9.19	tyr19
+192.168.9.20	tyr20
+192.168.9.21	tyr21
+192.168.9.22	tyr22
+192.168.9.23	tyr23
+192.168.9.24	tyr24
+192.168.9.25	tyr25
+192.168.9.26	tyr26
+192.168.9.27	tyr27
+192.168.9.28	tyr28
+192.168.9.29	tyr29
+192.168.9.30	tyr30
+
+# mghpcc
+192.69.102.195	mfedhpc1
