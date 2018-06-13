@@ -1,14 +1,12 @@
 The cast:
 
-test
-
 ufp.hpc.rutgers.edu - slurm database, xrootd redirector, xrootd data server, ldap server, ganglia web, perfsonar web
 
 mace - 6-node physical cluster at Rutgers
 mace - login node, scheduler, local nfs
 mace[1-5] - compute nodes
 
-~/fedconfig - site-specific config files - generate or get from Rutgers and modify - for example the chrony.conf includes Rutgers name servers.
+~/fedconfig - site-specific config files - generate or get from Rutgers and modify
 
 OS: Centos 7.4
 OpenHPC recipe: 1.3.4
@@ -16,14 +14,17 @@ Scheduler: slurm 17.11
 Filesystem: xrootdfs with local nfs export
 Authz, authn: ldap, replace with shibboleth
 Other: ganglia, perfsonar
-Eval: openafs, stashcache, kubernetes, singularity
+Eval: ceph, openafs, stashcache, kubernetes, singularity
 
 Issues:
 xrootd won’t mount until ldap is ready
+xrootd security works from Rutgers but not MGHPCC, temporarily disabled
+perfsonar mesh needs some modification on member clusters
+
 
 # bare metal install
 # install centos 7.4 minimal
-# set up ssh keys from management
+# set up ssh keys from local management servers
 yum -y update
 # this one fails - did update do it already?  just skip it and install the other groups.
 #yum -y groupinstall “Infrastructure Server”
@@ -34,20 +35,17 @@ yum -y groupinstall "Hardware Monitoring Utilities" "Performance Tools" "Develop
 cp ~/fedconfig/hosts /etc
 cp ~/fedconfig/hosts.allow /etc
 cp ~/fedconfig/hosts.deny /etc
-yum -y install https://na01.safelinks.protection.outlook.com/?url=http%3A%2F%2Fbuild.openhpc.community%2FOpenHPC%3A%2F1.3%2FCentOS_7%2Fx86_64%2Fohpc-release-1.3-1.el7.x86_64.rpm&data=02%7C01%7Cericmars%40oarc.rutgers.edu%7C001a3cd57bd44909725108d5c06c1f70%7Cb92d2b234d35447093ff69aca6632ffe%7C1%7C1%7C636626492979197825&sdata=b0X9gyliwu3WEMS2LhSb2mqFUTFetnAJ7pfhH2pL6g8%3D&reserved=0
+yum -y install http://build.openhpc.community/OpenHPC:/1.3/CentOS_7/x86_64/ohpc-release-1.3-1.el7.x86_64.rpm
 yum -y update
 yum -y install ohpc-base
 sed -i s/SELINUX=enforcing/SELINUX=permissive/ /etc/selinux/config
 setenforce 0
-cp ~/fedconfig/chrony.conf /etc
-systemctl restart chronyd
 yum -y install nmap iptraf-ng iperf3 hdparm msr-tools mlocate trafshow yum-utils
 # customize
 
 
 # mace
 # follow bare metal install for mace and mace1-5
-
 
 # firewall
 firewall-cmd --list-all-zones
@@ -74,15 +72,13 @@ pdsh -w mace[1-5] "uptime"
 echo "net.ipv4.ip_forward = 1" >> /etc/sysctl.conf
 sysctl -p /etc/sysctl.conf
 
-
 # ldap
 yum install sssd openldap-clients
-authconfig --updateall --enableldap --enableldapauth --ldapserver=ldap://ufp.hpc.rutgers.edu:389 --ldapbasedn=dc=ufp,dc=hpc,dc=rutgers,dc=edu --enableldaptls --enableldapstarttls
+authconfig --updateall --enableldap --enableldapauth --ldapserver=ldap://ern.hpc.rutgers.edu:389 --ldapbasedn=dc=ufp,dc=hpc,dc=rutgers,dc=edu --enableldaptls --enableldapstarttls
 cp ~/fedconfig/cacert.pem /etc/openldap/cacerts
 cacertdir_rehash /etc/openldap/cacerts/
 systemctl restart sssd
 id babbott
-
 
 # create home dirs
 yum install oddjob-mkhomedir
@@ -95,23 +91,23 @@ authconfig --enablemkhomedir --update
 id slurm
 id munge
 yum install ohpc-slurm-server ohpc-slurm-client
-cp ~/fedconfig/munge.key-ufp /etc/munge/munge.key
+cp ~/fedconfig/munge.key /etc/munge/munge.key
 systemctl restart munge
 # Modify /etc/slurm/slurm.conf with the below
 #ClusterName=mace
 #ControlMachine=mace.local
 #AccountingStorageType=accounting_storage/slurmdbd
-#AccountingStorageHost=ufp.hpc.rutgers.edu
+#AccountingStorageHost=ern.hpc.rutgers.edu
 #NodeName=mace[1-5] Sockets=2 CoresPerSocket=4 ThreadsPerCore=1 State=UNKNOWN
 #PartitionName=DEFAULT DefaultTime=1:00:00 MaxTime=3-0 State=UP
-#PartitionName=main Nodes=mace[1-5] Default=YES AllowGroups=babbott
+#PartitionName=mace Nodes=mace[1-5] Default=YES
 #PartitionName=ern Nodes=mace[1-5]
 #FederationParameters=fed_display
 vi /etc/slurm/slurm.conf
 systemctl enable slurmctld
 systemctl restart slurmctld
 # notify Bill of the cluster name and scheduler ip address,
-# wait for confirmation that ufp is modified
+# wait for confirmation that the slurmdbd is modified
 systemctl restart slurmctld
 # send ssh keys
 # and usernames to set up in ldap
@@ -124,8 +120,6 @@ exportfs
 systemctl enable nfs-server
 systemctl start nfs-server
 
-
-
 # xrootd
 # check that xrootd user is already in ldap
 id xrootd
@@ -134,13 +128,14 @@ mkdir /var/log/xrootd
 chown -R xrootd:xrootd /var/log/xrootd/
 cp ~/fedconfig/xrootd.key /etc/xrootd
 chown -R xrootd:xrootd /etc/xrootd
-#xrootdfs /xrootd fuse rdr=xroot://ufp.hpc.rutgers.edu:1094//xdata/,uid=xrootd,sss=/etc/xrootd/xrootd.key,noauto 0 0
+#xrootdfs /xrootd fuse rdr=xroot://ern.hpc.rutgers.edu:1094//xdata/,uid=xrootd,sss=/etc/xrootd/xrootd.key,noauto 0 0
 vi /etc/fstab
 mkdir /xrootd
 mount /xrootd
 ls -al /xrootd
 su - babbott
 # only /xrootd/users/babbott should be writeable for babbott
+# not currently working
 cd /xrootd/users/babbott
 touch test
 # add to nfs
@@ -158,7 +153,7 @@ ssh mace “uptime”
 exit
 
 # perfsonar
-yum -y install https://na01.safelinks.protection.outlook.com/?url=http%3A%2F%2Fsoftware.internet2.edu%2Frpms%2Fel7%2Fx86_64%2Fmain%2FRPMS%2FperfSONAR-repo-0.8-1.noarch.rpm&data=02%7C01%7Cericmars%40oarc.rutgers.edu%7C001a3cd57bd44909725108d5c06c1f70%7Cb92d2b234d35447093ff69aca6632ffe%7C1%7C1%7C636626492979197825&sdata=d8QRPSMe52fiwlGRSD62CPlBAA8vdgdgOAfxaSWd7UU%3D&reserved=0
+yum -y install http://software.internet2.edu/rpms/el7/x86_64/main/RPMS/perfSONAR-repo-0.8-1.noarch.rpm
 yum clean all
 yum install perfsonar-testpoint
 yum install perfsonar-toolkit-servicewatcher
@@ -172,9 +167,9 @@ systemctl start pscheduler-runner
 systemctl start pscheduler-archiver
 systemctl start pscheduler-ticker
 systemctl start owamp-server
-# not these
+systemctl start bwctl-server
+# not this one
 #systemctl start perfsonar-lsregistrationdaemon
-#systemctl start bwctl-server
 # switch to ren limits
 cd /etc/pscheduler
 mv limits.conf limits.conf-orig
@@ -186,8 +181,8 @@ firewall-cmd --reload
 
 # ganglia
 yum -y install ganglia-gmond-ohpc
-# cluster, mute/deaf, port
-cp ~/fedconfig/gmond.conf-mace-login /etc/ganglia/gmond.conf
+# cluster name, udp send host
+cp ~/fedconfig/gmond.conf /etc/ganglia
 systemctl enable gmond
 systemctl start gmond
 
@@ -206,8 +201,6 @@ firewall-cmd --runtime-to-permanent
 yum install boinc-client boinc-client-doc
 
 
-
-
 # complete mace1-5 (bare metal and mace keys already done)
 # commands run from mace
 for i in {1..5};do scp ~/fedconfig/hosts mace$i:/etc;done
@@ -219,17 +212,18 @@ pdsh -w mace[1-5] ‘systemctl disable firewalld’
 pdsh -w mace[1-5] 'yum -y install sssd openldap-clients'
 pdsh -w mace[1-5] ‘mkdir /etc/openldap/cacerts’
 for i in {1..5};do echo mace$i;scp ~/fedconfig/cacert.pem mace$i:/etc/openldap/cacerts;ssh mace$i ‘cacertdir_rehash /etc/openldap/cacerts/’;done
-pdsh -w mace[1-5] 'authconfig --updateall --enableldap --enableldapauth --ldapserver=ldap://ufp.hpc.rutgers.edu:389 --ldapbasedn=dc=ufp,dc=hpc,dc=rutgers,dc=edu --enableldaptls --enableldapstarttls'
+pdsh -w mace[1-5] 'authconfig --updateall --enableldap --enableldapauth --ldapserver=ldap://ern.hpc.rutgers.edu:389 --ldapbasedn=dc=ufp,dc=hpc,dc=rutgers,dc=edu --enableldaptls --enableldapstarttls'
 pdsh -w mace[1-5] ‘systemctl restart sssd’
 pdsh -w mace[1-5] ‘id babbott’
 
 # slurm
 # should be 20003, 20002
 pdsh -w mace[1-5] ‘id slurm;id munge’
+# might not need ohpc-slurm-client here, just server
 pdsh -w mace[1-5] ‘yum -y install ohpc-slurm-client ohpc-slurm-server’
-for i in {1..5};do scp ~/fedconfig/munge.key-ufp mace$i:/etc/munge/munge.key;done
+for i in {1..5};do scp ~/fedconfig/munge.key mace$i:/etc/munge/munge.key;done
 pdsh -w mace[1-5] ‘systemctl restart munge’
-for i in {1..5};do scp ~/fedconfig/slurm.conf-mace mace$i:/etc/slurm/slurm.conf;done
+for i in {1..5};do scp ~/fedconfig/slurm.conf mace$i:/etc/slurm;done
 pdsh -w mace[1-5] “systemctl enable slurmd;systemctl restart slurmd”
 
 # nfs mounts - do on each compute node
@@ -242,7 +236,6 @@ exit
 # back to mace
 pdsh -w mace[1-5] 'umount /home;mount /home'
 
-
 # xrootd
 # on mace1-5
 ssh mace1
@@ -252,13 +245,11 @@ exit
 # back to mace
 pdsh -w mace[1-5] ‘mkdir /xrootd;mount /xrootd;ls /xrootd’
 
-
 # ganglia
 pdsh -w mace[1-5] 'yum -y install ganglia-gmond-ohpc'
-for i in {1..5};do echo mace$i;scp ~/fedconfig/gmond.conf-mace-compute mace$i:/etc/ganglia/gmond.conf;done
+for i in {1..5};do echo mace$i;scp ~/fedconfig/gmond.conf mace$i:/etc/ganglia;done
 pdsh -w mace[1-5] 'systemctl enable gmond'
 pdsh -w mace[1-5] 'systemctl start gmond'
-
 
 # confirm user can ssh from mace to mace1-5 without password
 su - babbott
