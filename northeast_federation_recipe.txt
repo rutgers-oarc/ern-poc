@@ -75,7 +75,7 @@ sysctl -p /etc/sysctl.conf
 # ldap
 yum install sssd openldap-clients
 authconfig --updateall --enableldap --enableldapauth --ldapserver=ldap://ern.hpc.rutgers.edu:389 --ldapbasedn=dc=ufp,dc=hpc,dc=rutgers,dc=edu --enableldaptls --enableldapstarttls
-cp ~/fedconfig/cacert.pem /etc/openldap/cacerts
+cp ~/fedconfig/erncert.pem /etc/openldap/cacerts
 cacertdir_rehash /etc/openldap/cacerts/
 systemctl restart sssd
 id babbott
@@ -211,7 +211,7 @@ pdsh -w mace[1-5] ‘systemctl disable firewalld’
 # ldap
 pdsh -w mace[1-5] 'yum -y install sssd openldap-clients'
 pdsh -w mace[1-5] ‘mkdir /etc/openldap/cacerts’
-for i in {1..5};do echo mace$i;scp ~/fedconfig/cacert.pem mace$i:/etc/openldap/cacerts;ssh mace$i ‘cacertdir_rehash /etc/openldap/cacerts/’;done
+for i in {1..5};do echo mace$i;scp ~/fedconfig/erncert.pem mace$i:/etc/openldap/cacerts;ssh mace$i ‘cacertdir_rehash /etc/openldap/cacerts/’;done
 pdsh -w mace[1-5] 'authconfig --updateall --enableldap --enableldapauth --ldapserver=ldap://ern.hpc.rutgers.edu:389 --ldapbasedn=dc=ufp,dc=hpc,dc=rutgers,dc=edu --enableldaptls --enableldapstarttls'
 pdsh -w mace[1-5] ‘systemctl restart sssd’
 pdsh -w mace[1-5] ‘id babbott’
