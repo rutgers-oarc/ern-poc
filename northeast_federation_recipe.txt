@@ -1,10 +1,11 @@
 The cast:
 
-ufp.hpc.rutgers.edu - slurm database, xrootd redirector, xrootd data server, ldap server, ganglia web, perfsonar web
+ern.hpc.rutgers.edu - slurm database, xrootd redirector, ldap server, ganglia web, perfsonar web
+khan.hpc.rutgers.edu - xrootd data server
 
-mace - 6-node physical cluster at Rutgers
+mace - 3-node physical cluster at Rutgers
 mace - login node, scheduler, local nfs
-mace[1-5] - compute nodes
+mace[1-2] - compute nodes
 
 ~/fedconfig - site-specific config files - generate or get from Rutgers and modify
 
@@ -75,7 +76,7 @@ sysctl -p /etc/sysctl.conf
 # ldap
 yum install sssd openldap-clients
 authconfig --updateall --enableldap --enableldapauth --ldapserver=ldap://ern.hpc.rutgers.edu:389 --ldapbasedn=dc=ufp,dc=hpc,dc=rutgers,dc=edu --enableldaptls --enableldapstarttls
-cp ~/fedconfig/erncert.pem /etc/openldap/cacerts
+cp ~/fedconfig/ern_hpc_rutgers_edu_interm.cer /etc/openldap/cacerts
 cacertdir_rehash /etc/openldap/cacerts/
 systemctl restart sssd
 id babbott
@@ -211,7 +212,7 @@ pdsh -w mace[1-5] ‘systemctl disable firewalld’
 # ldap
 pdsh -w mace[1-5] 'yum -y install sssd openldap-clients'
 pdsh -w mace[1-5] ‘mkdir /etc/openldap/cacerts’
-for i in {1..5};do echo mace$i;scp ~/fedconfig/erncert.pem mace$i:/etc/openldap/cacerts;ssh mace$i ‘cacertdir_rehash /etc/openldap/cacerts/’;done
+for i in {1..5};do echo mace$i;scp ~/fedconfig/ern_hpc_rutgers_edu_interm.cer mace$i:/etc/openldap/cacerts;ssh mace$i ‘cacertdir_rehash /etc/openldap/cacerts/’;done
 pdsh -w mace[1-5] 'authconfig --updateall --enableldap --enableldapauth --ldapserver=ldap://ern.hpc.rutgers.edu:389 --ldapbasedn=dc=ufp,dc=hpc,dc=rutgers,dc=edu --enableldaptls --enableldapstarttls'
 pdsh -w mace[1-5] ‘systemctl restart sssd’
 pdsh -w mace[1-5] ‘id babbott’
