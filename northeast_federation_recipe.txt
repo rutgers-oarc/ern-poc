@@ -129,7 +129,7 @@ mkdir /var/log/xrootd
 chown -R xrootd:xrootd /var/log/xrootd/
 cp ~/fedconfig/xrootd.key /etc/xrootd
 chown -R xrootd:xrootd /etc/xrootd
-#xrootdfs /xrootd fuse rdr=xroot://ern.hpc.rutgers.edu:1094//xdata/,uid=xrootd,sss=/etc/xrootd/xrootd.key,noauto 0 0
+#xrootdfs /xrootd fuse rdr=xroot://khan.hpc.rutgers.edu:1094//xdata/,uid=xrootd,sss=/etc/xrootd/xrootd.key,noauto 0 0
 vi /etc/fstab
 mkdir /xrootd
 mount /xrootd
