@@ -20,7 +20,6 @@ Eval: ceph, openafs, stashcache, kubernetes, singularity
 Issues:
 xrootd won’t mount until ldap is ready
 xrootd security works from Rutgers but not MGHPCC, temporarily disabled
-perfsonar mesh needs some modification on member clusters
 
 
 # bare metal install
@@ -154,23 +153,13 @@ ssh mace “uptime”
 exit
 
 # perfsonar
-yum -y install http://software.internet2.edu/rpms/el7/x86_64/main/RPMS/perfSONAR-repo-0.8-1.noarch.rpm
+yum install http://software.internet2.edu/rpms/el7/x86_64/main/RPMS/perfSONAR-repo-0.8-1.noarch.rpm
+yum install perfSONAR-repo-staging
 yum clean all
 yum install perfsonar-testpoint
 yum install perfsonar-toolkit-servicewatcher
 yum install perfsonar-toolkit-sysctl
 yum install perfsonar-toolkit-systemenv-testpoint
-# auto updates
-systemctl enable yum-cron
-systemctl start yum-cron
-systemctl start pscheduler-scheduler
-systemctl start pscheduler-runner
-systemctl start pscheduler-archiver
-systemctl start pscheduler-ticker
-systemctl start owamp-server
-systemctl start bwctl-server
-# not this one
-#systemctl start perfsonar-lsregistrationdaemon
 # switch to ren limits
 cd /etc/pscheduler
 mv limits.conf limits.conf-orig
@@ -179,6 +168,9 @@ chown root:pscheduler limits.conf
 pscheduler validate-limits
 cp ~/fedconfig/perfsonar.xml /etc/firewalld/services/
 firewall-cmd --reload
+# get mesh config from ern.hpc
+psconfig remote add --configure-archives "https://ern.hpc.rutgers.edu/psconfig/ernmesh.json"
+# reboot the server and the services should start automatically
 
 # ganglia
 yum -y install ganglia-gmond-ohpc

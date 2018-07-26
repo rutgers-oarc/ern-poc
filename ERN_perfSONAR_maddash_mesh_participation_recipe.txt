@@ -1,7 +1,7 @@
 Title: Instructions for joining a perfSONAR measurement host to the ERN mesh and visualization grid
 Rev.: 1.0
-Date: 7/16/2018
-perfSONAR host version: 4.0
+Date: 7/25/2018
+perfSONAR host version: 4.1
 OS: CentOS 7
 
 ---------------------------------------------
@@ -9,7 +9,7 @@ OS: CentOS 7
 
 A. If you have existing perfSONAR measurement host(s):
 
-  Step 1: Send a mesh provisioning request to tech@hpc.rutgers.edu including the hostnames of your measurement hosts, location, and the system administrators responsible for the hosts. E.g.:
+  Step 1: Send a mesh provisioning request to tech@hpc.rutgers.edu including the hostnames of your measurement hosts and responsible sysadmins. E.g.:
 
 
   hostname: perfsonarny.myren.org
@@ -22,47 +22,23 @@ A. If you have existing perfSONAR measurement host(s):
 
 
 
-  Step 2: On each of your measurement host add the following code snippet on the bottom of "/etc/perfsonar/meshconfig-agent.conf":
+  Step 2: On each of your measurement host run the following command:
 
-  ## ERN Mesh hosted by Rutgers in NJ
-  <mesh>
-          configuration_url http://ern.hpc.rutgers.edu/ernmesh.json
-          validate_certificate         0
-  </mesh>
+ psconfig remote add --configure-archives "https://riker.hpc.rutgers.edu/psconfig/ernmesh.json"
 
 
-  *Optional: If you are already participating in another mesh(es) you can add the snippet from Step 2 as a separate mesh block in meshconfig-agent.conf and thus participate in multiple meshes. E.g.:
+  *Note: You can have multiple psconfig remote lines to participate in multiple meshes
 
-  ## Quilt Mesh hosted by OneNet in OK
-  <mesh>
-          configuration_url http://ps.onenet.net/mesh/quilt.json
-          validate_certificate         0
-  </mesh>
+  Step 3: Clone the ERN git repository to get a copy of the firewalld perfsonar service file
 
-  ## ERN Mesh hosted by Rutgers in NJ
-  <mesh>
-          configuration_url http://ern.hpc.rutgers.edu/ernmesh.json
-          validate_certificate         0
-  </mesh>
+ git clone https://git.com/rutgers-oarc/ern-poc
 
+ copy ern-poc/fedconfig/perfsonar.xml /etc/firewalld/services
 
-  Step 3: Restart* the perfSONAR meshconfig agent to force it to load the changes in "/etc/perfsonar/meshconfig-agent.conf":
-
-  systemctl restart perfsonar-meshconfig-agent
-
-  *the meshconfig agent on the measurement host checks this file for changes on an hourly bases so service restart is not critical
-
+  Step 3: Reboot the measurement host so all services start properly and the firewall restarts
 
 
 B. If you need to build a new measurement host from scratch you can follow the guidelines below to install perfSONAR on a dedicated hardware appliance:
 
-  Hardware requirements:
-  https://docs.perfsonar.net/install_hardware.html
-
-  Install options:
-  https://docs.perfsonar.net/install_options.html
-
-
-
-
+  http://docs.perfsonar.net/release_candidates/4.1b1/index.html
 
