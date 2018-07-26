@@ -29,9 +29,7 @@ A. If you have existing perfSONAR measurement host(s):
 
   *Note: You can have multiple psconfig remote lines to participate in multiple meshes
 
-  Step 3: Clone the ERN git repository to get a copy of the firewalld perfsonar service file
-
- git clone https://git.com/rutgers-oarc/ern-poc
+  Step 3: Copy firewalld perfsonar service file
 
  copy ern-poc/fedconfig/perfsonar.xml /etc/firewalld/services
 
