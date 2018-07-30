@@ -26,14 +26,10 @@ all: 192.69.102.192/255.255.255.224
 all: 128.230.21.0/255.255.255.0
 
 # NJ Edge
-all: 130.156.100.127
-
-# OSHEAN
-all: 198.7.237.18
-all: 131.109.208.194
+all: 130.156.250.14
 
 
-## Site-specific
+## Site-specific - modify this to allow local management
 
 # Rutgers
 

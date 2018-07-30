@@ -1,11 +1,13 @@
 127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4
 ::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
 
-128.6.226.170	ern.hpc.rutgers.edu ufp
+# Rutgers
+
+128.6.226.170	ern.hpc.rutgers.edu ern
 192.168.9.201	ern.local
 
-192.168.9.202	mace.local
 128.6.226.171	mace.hpc.rutgers.edu mace
+192.168.9.202	mace.local
 192.168.9.203	mace1
 192.168.9.204	mace2
 192.168.9.205	mace3
@@ -18,5 +20,11 @@
 128.6.226.174	riker.hpc.rutgers.edu riker
 192.168.9.209	riker.local
 
-# mghpcc
-192.69.102.195	mfedhpc1
+# MGHPC
+192.69.102.195	mfedhpc0 mfedhpc
+
+# Syracuse
+128.230.21.15	otto
+
+# NJ Edge
+130.156.250.14
