@@ -1,13 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <service>
   <port protocol="tcp" port="861"/>
-  <port protocol="udp" port="8760-9960"/>
   <port protocol="tcp" port="862"/>
+  <port protocol="udp" port="8760-9960"/>
+  <port protocol="tcp" port="8760-9960"/>
+  <port protocol="udp" port="18760-19960"/>
   <port protocol="tcp" port="18760-19960"/>
-  <port protocol="tcp" port="5201"/>
   <port protocol="tcp" port="5000"/>
   <port protocol="tcp" port="5101"/>
+  <port protocol="tcp" port="5201"/>
   <port protocol="udp" port="33434-33634"/>
   <port protocol="tcp" port="5890-5900"/>
+  <port protocol="udp" port="5001-5900"/>
+  <port protocol="tcp" port="5001-5900"/>
+  <port protocol="udp" port="6001-6200"/>
+  <port protocol="tcp" port="6001-6200"/>
   <protocol value="icmp"/>
 </service>
