@@ -1,13 +1,13 @@
 Title: Instructions for joining a perfSONAR measurement host to the ERN mesh and visualization grid
 Rev.: 1.0
 Date: 7/25/2018
-perfSONAR host version: 4.1
+perfSONAR host versions: 4.0, 4.1
 OS: CentOS 7
 
 ---------------------------------------------
 
 
-A. If you have existing perfSONAR measurement host(s):
+A. If you have an existing perfSONAR measurement host(s) with version 4.1:
 
   Step 1: Send a mesh provisioning request to tech@hpc.rutgers.edu including the hostnames of your measurement hosts and responsible sysadmins. E.g.:
 
@@ -22,12 +22,22 @@ A. If you have existing perfSONAR measurement host(s):
 
 
 
-  Step 2: On each of your measurement host run the following command:
+  Step 2a: version 4.1 - On each of your measurement hosts run the following command:
 
- psconfig remote add --configure-archives "https://riker.hpc.rutgers.edu/psconfig/ernmesh.json"
+ psconfig remote add --configure-archives "https://mesh.hpc.rutgers.edu/psconfig/ernmesh.json"
 
 
   *Note: You can have multiple psconfig remote lines to participate in multiple meshes
+
+  Step 2b: version 4.0 - On each of your measurement hosts add the following lines to /etc/perfsonar/meshconfig-agent.conf:
+
+<mesh>
+configuration_url    hxxps://mesh.hpc.rutgers.edu/psconfig/northeastmesh.json
+</mesh>
+
+configure_archives  1
+
+
 
   Step 3: Copy firewalld perfsonar service file
 
