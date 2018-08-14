@@ -50,7 +50,6 @@ yum -y install nmap iptraf-ng iperf3 hdparm msr-tools mlocate trafshow yum-utils
 # firewall
 firewall-cmd --list-all-zones
 firewall-cmd --zone=public --remove-service=dhcpv6-client
-firewall-cmd --zone=public --remove-service=ssh
 firewall-cmd --info-zone=public
 # add internal interface to trusted zone
 # ZONE=trusted
@@ -59,7 +58,14 @@ vi /etc/sysconfig/network-scripts/ifcfg-enp6s4f0
 firewall-cmd --zone=public --add-rich-rule='rule family="ipv4" source address="172.16.94.0/24" accept'
 firewall-cmd --zone=public --add-rich-rule='rule family="ipv4" source address="172.16.74.64/26" accept'
 firewall-cmd --zone=public --add-masquerade
+firewall-cmd --zone=public --add-port=6817/tcp
+cp ~/fedconfig/perfsonar.xml /etc/firewalld/services/
+firewall-cmd --zone=public --add-service=perfsonar
 firewall-cmd --runtime-to-permanent
+firewall-cmd --reload
+
+# this should leave you with ssh, perfsonar and 6817/tcp open in zone public.
+# these will be restricted with hosts.allow, ps limits and munge keys.
 
 # node ssh keys
 ssh-keygen
@@ -166,8 +172,6 @@ mv limits.conf limits.conf-orig
 cp /usr/share/doc/pscheduler/limit-examples/identifier-ip-cidr-list-url limits.conf
 chown root:pscheduler limits.conf
 pscheduler validate-limits
-cp ~/fedconfig/perfsonar.xml /etc/firewalld/services/
-firewall-cmd --reload
 # get mesh config from ern.hpc
 psconfig remote add --configure-archives "https://ern.hpc.rutgers.edu/psconfig/ernmesh.json"
 # reboot the server and the services should start automatically
@@ -182,10 +186,7 @@ systemctl start gmond
 # firewall settings
 # all from local subnet - replace with yours
 firewall-cmd --zone=public --add-rich-rule='rule family="ipv4" source address="128.6.226.160/27" accept'
-# ssh, slurm, perfsonar from other member sites
-firewall-cmd --zone=public --add-rich-rule='rule family="ipv4" source address="192.69.102.192/27" port port=22 protocol=tcp accept'
-firewall-cmd --zone=public --add-rich-rule='rule family="ipv4" source address="192.69.102.192/27" port port=6817 protocol=tcp accept'
-firewall-cmd --zone=public --add-rich-rule='rule family="ipv4" source address="192.69.102.192/27" service name=perfsonar accept'
+# ssh, slurm, perfsonar should already be in zone public
 # ganglia from central
 firewall-cmd --zone=public --add-rich-rule='rule family="ipv4" source address="128.6.226.160/27" port port=8649 protocol=tcp accept'
 firewall-cmd --runtime-to-permanent
