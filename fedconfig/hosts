@@ -1,3 +1,5 @@
+## create a hosts file with local entries, then append this file
+
 127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4
 ::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
 
@@ -10,9 +12,6 @@
 192.168.9.202	mace.local
 192.168.9.203	mace1
 192.168.9.204	mace2
-192.168.9.205	mace3
-192.168.9.206	mace4
-192.168.9.207	mace5
 
 128.6.226.173	khan.hpc.rutgers.edu khan
 192.168.9.208	khan.local
@@ -27,4 +26,8 @@
 128.230.21.15	otto
 
 # NJ Edge
-130.156.250.14
+130.156.250.14	edge
+
+# gcloud
+35.231.111.22	gcloud1-controller
+35.196.70.202	gcloud1-login

@@ -1,18 +1,7 @@
-#
-# hosts.allow	This file contains access rules which are used to
-#		allow or deny connections to network services that
-#		either use the tcp_wrappers library or that have been
-#		started through a tcp_wrappers-enabled xinetd.
-#
-#		See 'man 5 hosts_options' and 'man 5 hosts_access'
-#		for information on rule syntax.
-#		See 'man tcpd' for information on tcp_wrappers
-#
+## create a hosts.allow with local entries, and append the below
 
 all: 127.0.0.1
 all: [::1]
-
-
 
 ## ERN members
 
@@ -28,15 +17,7 @@ all: 128.230.21.0/255.255.255.0
 # NJ Edge
 all: 130.156.250.14
 
-
-## Site-specific - modify this to allow local management
-
-# Rutgers
-
-# Rutgers internal
-all: 172.16.0.0/255.240.0.0
-sshd: 128.6.0.0/255.255.0.0
-
-# private networks
-all: 192.168.0.0/255.255.0.0
+# gcloud1
+all: 35.231.111.22
+all: 35.196.70.202
 

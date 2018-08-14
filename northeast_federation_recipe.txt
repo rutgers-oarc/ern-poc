@@ -30,11 +30,12 @@ yum -y update
 #yum -y groupinstall “Infrastructure Server”
 yum -y groupinstall "Hardware Monitoring Utilities" "Performance Tools" "Development Tools" "Network File System Client" "Console Internet Tools" "Networking Tools" "System Administration Tools" "System Management" “Compatibility Libraries” “Platform Development”
 # customize the “local” part of hosts.allow and hosts to add management, monitoring, etc.
+# or create local versions and append
 # y to overwrite prompt
 # skip these three for the compute nodes - do it once keys are set up from mace
-cp ~/fedconfig/hosts /etc
-cp ~/fedconfig/hosts.allow /etc
-cp ~/fedconfig/hosts.deny /etc
+cat ~/fedconfig/hosts >> /etc/hosts
+cat ~/fedconfig/hosts.allow >> /etc/hosts.allow
+cat ~/fedconfig/hosts.deny >> /etc/hosts.deny
 yum -y install http://build.openhpc.community/OpenHPC:/1.3/CentOS_7/x86_64/ohpc-release-1.3-1.el7.x86_64.rpm
 yum -y update
 yum -y install ohpc-base
