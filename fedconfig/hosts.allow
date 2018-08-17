@@ -1,7 +1,5 @@
-## create a hosts.allow with local entries, and append the below
 
-all: 127.0.0.1
-all: [::1]
+## create a hosts.allow with local entries and append the below
 
 ## ERN members
 
