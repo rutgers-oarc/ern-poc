@@ -1,8 +1,5 @@
 ## create a hosts file with local entries, then append this file
 
-127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4
-::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
-
 # Rutgers
 
 128.6.226.170	ern.hpc.rutgers.edu ern
