@@ -14,31 +14,33 @@ OpenHPC recipe: 1.3.4
 Scheduler: slurm 17.11
 Filesystem: xrootdfs with local nfs export
 Authz, authn: ldap, replace with shibboleth
-Other: ganglia, perfsonar
-Eval: ceph, openafs, stashcache, kubernetes, singularity
+Other: ganglia, perfsonar, singularity
+Eval: ceph, openafs, stashcache, kubernetes
 
 Issues:
-xrootd won’t mount until ldap is ready
-xrootd security works from Rutgers but not MGHPCC, temporarily disabled
-
+xrootd won’t mount until ldap is ready (test systemd fix)
+xrootd security works from Rutgers but not external, temporarily disabled
 
 # bare metal install
 # install centos 7.4 minimal
 # set up ssh keys from local management servers
+# git clone ern repo
+git clone https://github.com/rutgers-oarc/ern-poc.git
 yum -y update
 # this one fails - did update do it already?  just skip it and install the other groups.
 #yum -y groupinstall “Infrastructure Server”
 yum -y groupinstall "Hardware Monitoring Utilities" "Performance Tools" "Development Tools" "Network File System Client" "Console Internet Tools" "Networking Tools" "System Administration Tools" "System Management" “Compatibility Libraries” “Platform Development”
-# customize the “local” part of hosts.allow and hosts to add management, monitoring, etc.
-# or create local versions and append
-# y to overwrite prompt
+#
+# create local versions and append
 # skip these three for the compute nodes - do it once keys are set up from mace
-cat ~/fedconfig/hosts >> /etc/hosts
-cat ~/fedconfig/hosts.allow >> /etc/hosts.allow
-cat ~/fedconfig/hosts.deny >> /etc/hosts.deny
+cat ~/ern-poc/fedconfig/hosts >> /etc/hosts
+cat ~/ern-poc/fedconfig/hosts.allow >> /etc/hosts.allow
+cat ~/ern-poc/fedconfig/hosts.deny >> /etc/hosts.deny
+#
 yum -y install http://build.openhpc.community/OpenHPC:/1.3/CentOS_7/x86_64/ohpc-release-1.3-1.el7.x86_64.rpm
 yum -y update
 yum -y install ohpc-base
+#
 sed -i s/SELINUX=enforcing/SELINUX=permissive/ /etc/selinux/config
 setenforce 0
 yum -y install nmap iptraf-ng iperf3 hdparm msr-tools mlocate trafshow yum-utils
@@ -46,7 +48,7 @@ yum -y install nmap iptraf-ng iperf3 hdparm msr-tools mlocate trafshow yum-utils
 
 
 # mace
-# follow bare metal install for mace and mace1-5
+# follow bare metal install for mace and mace1-2
 
 # firewall
 firewall-cmd --list-all-zones
@@ -60,7 +62,7 @@ firewall-cmd --zone=public --add-rich-rule='rule family="ipv4" source address="1
 firewall-cmd --zone=public --add-rich-rule='rule family="ipv4" source address="172.16.74.64/26" accept'
 firewall-cmd --zone=public --add-masquerade
 firewall-cmd --zone=public --add-port=6817/tcp
-cp ~/fedconfig/perfsonar.xml /etc/firewalld/services/
+cp ~/ern-poc/fedconfig/perfsonar.xml /etc/firewalld/services/
 firewall-cmd --zone=public --add-service=perfsonar
 firewall-cmd --runtime-to-permanent
 firewall-cmd --reload
@@ -72,17 +74,14 @@ firewall-cmd --reload
 ssh-keygen
 ssh-copy-id mace1
 ssh-copy-id mace2
-ssh-copy-id mace3
-ssh-copy-id mace4
-ssh-copy-id mace5
-pdsh -w mace[1-5] "uptime"
+pdsh -w mace[1-2] "uptime"
 echo "net.ipv4.ip_forward = 1" >> /etc/sysctl.conf
 sysctl -p /etc/sysctl.conf
 
 # ldap
 yum install sssd openldap-clients
 authconfig --updateall --enableldap --enableldapauth --ldapserver=ldap://ern.hpc.rutgers.edu:389 --ldapbasedn=dc=ufp,dc=hpc,dc=rutgers,dc=edu --enableldaptls --enableldapstarttls
-cp ~/fedconfig/ern_hpc_rutgers_edu_interm.cer /etc/openldap/cacerts
+cp ~/ern-poc/fedconfig/ern_hpc_rutgers_edu_interm.cer /etc/openldap/cacerts
 cacertdir_rehash /etc/openldap/cacerts/
 systemctl restart sssd
 id babbott
@@ -94,21 +93,22 @@ systemctl start oddjobd
 authconfig --enablemkhomedir --update
 
 # slurm, munge
-# check that user are already in ldap
+# check that user slurm is already in ldap, munge probably not necessary
 id slurm
-id munge
 yum install ohpc-slurm-server ohpc-slurm-client
-cp ~/fedconfig/munge.key /etc/munge/munge.key
+# acquire munge.key, copy to /etc/munge
+chown munge:munge /etc/munge/munge.key
+chmod 400 /etc/munge/munge.key
 systemctl restart munge
-# Modify /etc/slurm/slurm.conf with the below
+# Modify /etc/slurm/slurm.conf with the below, replacing mace with your name
 #ClusterName=mace
 #ControlMachine=mace.local
 #AccountingStorageType=accounting_storage/slurmdbd
 #AccountingStorageHost=ern.hpc.rutgers.edu
-#NodeName=mace[1-5] Sockets=2 CoresPerSocket=4 ThreadsPerCore=1 State=UNKNOWN
+#NodeName=mace[1-2] Sockets=2 CoresPerSocket=4 ThreadsPerCore=1 State=UNKNOWN
 #PartitionName=DEFAULT DefaultTime=1:00:00 MaxTime=3-0 State=UP
-#PartitionName=mace Nodes=mace[1-5] Default=YES
-#PartitionName=ern Nodes=mace[1-5]
+#PartitionName=mace Nodes=mace[1-2] Default=YES
+#PartitionName=ern Nodes=mace[1-2]
 #FederationParameters=fed_display
 vi /etc/slurm/slurm.conf
 systemctl enable slurmctld
@@ -131,19 +131,20 @@ systemctl start nfs-server
 # check that xrootd user is already in ldap
 id xrootd
 yum -y install xrootd-client xrootd-client-libs xrootd-fuse
-mkdir /var/log/xrootd
 chown -R xrootd:xrootd /var/log/xrootd/
-cp ~/fedconfig/xrootd.key /etc/xrootd
+cp ~/ern-poc/fedconfig/xrootd.key /etc/xrootd
 chown -R xrootd:xrootd /etc/xrootd
-#xrootdfs /xrootd fuse rdr=xroot://khan.hpc.rutgers.edu:1094//xdata/,uid=xrootd,sss=/etc/xrootd/xrootd.key,noauto 0 0
+#xrootdfs /xrootd/ern.rutgers fuse rdr=xroot://ern.hpc.rutgers.edu:1094//xdata/,uid=xrootd,noauto 0 0
+#xrootdfs /xrootd/khan.rutgers fuse rdr=xroot://khan.hpc.rutgers.edu:1094//xdata/,uid=xrootd,noauto 0 0
 vi /etc/fstab
 mkdir /xrootd
-mount /xrootd
-ls -al /xrootd
+mkdir /xrootd/ern.rutgers
+mkdir /xrootd/khan.rutgers
+mount /xrootd/ern.rutgers
+# khan under construction for a bit
+ls -al /xrootd/ern.rutgers
 su - babbott
-# only /xrootd/users/babbott should be writeable for babbott
-# not currently working
-cd /xrootd/users/babbott
+cd /xrootd/ern.rutgers/babbott
 touch test
 # add to nfs
 #/xrootd   192.168.0.0/255.255.0.0(rw,fsid=1)
@@ -151,7 +152,7 @@ vi /etc/exports
 exportfs -r
 exportfs
 
-# add user ssh keys
+# set up user ssh keys - replace babbott with your username
 su - babbott
 ssh-keygen
 cat .ssh/id_rsa.pub >> .ssh/authorized_keys
@@ -173,14 +174,16 @@ mv limits.conf limits.conf-orig
 cp /usr/share/doc/pscheduler/limit-examples/identifier-ip-cidr-list-url limits.conf
 chown root:pscheduler limits.conf
 pscheduler validate-limits
-# get mesh config from ern.hpc
+# get mesh config from ern.hpc and the northeast mesh
 psconfig remote add --configure-archives "https://ern.hpc.rutgers.edu/psconfig/ernmesh.json"
+psconfig remote add --configure-archives "https://mesh.hpc.rutgers.edu/psconfig/northeastmesh.json"
 # reboot the server and the services should start automatically
 
 # ganglia
 yum -y install ganglia-gmond-ohpc
+cp ~/ern-poc/fedconfig/gmond.conf /etc/ganglia
 # cluster name, udp send host
-cp ~/fedconfig/gmond.conf /etc/ganglia
+vi /etc/ganglia/gmond.conf
 systemctl enable gmond
 systemctl start gmond
 
@@ -195,31 +198,35 @@ firewall-cmd --runtime-to-permanent
 # user job
 yum install boinc-client boinc-client-doc
 
+# singularity
+yum -y install singularity-ohpc
 
-# complete mace1-5 (bare metal and mace keys already done)
+
+
+# complete mace1-2 (bare metal and mace keys already done)
 # commands run from mace
-for i in {1..5};do scp ~/fedconfig/hosts mace$i:/etc;done
-for i in {1..5};do scp ~/fedconfig/hosts.allow mace$i:/etc;done
-for i in {1..5};do scp ~/fedconfig/hosts.deny mace$i:/etc;done
-pdsh -w mace[1-5] ‘systemctl disable firewalld’
+for i in {1..2};do scp /etc/hosts mace$i:/etc;done
+for i in {1..2};do scp /etc/hosts.allow mace$i:/etc;done
+for i in {1..2};do scp /etc/hosts.deny mace$i:/etc;done
+pdsh -w mace[1-2] ‘systemctl disable firewalld’
 
 # ldap
-pdsh -w mace[1-5] 'yum -y install sssd openldap-clients'
-pdsh -w mace[1-5] ‘mkdir /etc/openldap/cacerts’
-for i in {1..5};do echo mace$i;scp ~/fedconfig/ern_hpc_rutgers_edu_interm.cer mace$i:/etc/openldap/cacerts;ssh mace$i ‘cacertdir_rehash /etc/openldap/cacerts/’;done
-pdsh -w mace[1-5] 'authconfig --updateall --enableldap --enableldapauth --ldapserver=ldap://ern.hpc.rutgers.edu:389 --ldapbasedn=dc=ufp,dc=hpc,dc=rutgers,dc=edu --enableldaptls --enableldapstarttls'
-pdsh -w mace[1-5] ‘systemctl restart sssd’
-pdsh -w mace[1-5] ‘id babbott’
+pdsh -w mace[1-2] 'yum -y install sssd openldap-clients'
+pdsh -w mace[1-2] ‘mkdir /etc/openldap/cacerts’
+for i in {1..2};do echo mace$i;scp ~/ern-poc/fedconfig/ern_hpc_rutgers_edu_interm.cer mace$i:/etc/openldap/cacerts;ssh mace$i ‘cacertdir_rehash /etc/openldap/cacerts/’;done
+pdsh -w mace[1-2] 'authconfig --updateall --enableldap --enableldapauth --ldapserver=ldap://ern.hpc.rutgers.edu:389 --ldapbasedn=dc=ufp,dc=hpc,dc=rutgers,dc=edu --enableldaptls --enableldapstarttls'
+pdsh -w mace[1-2] ‘systemctl restart sssd’
+pdsh -w mace[1-2] ‘id babbott’
 
 # slurm
 # should be 20003, 20002
-pdsh -w mace[1-5] ‘id slurm;id munge’
+pdsh -w mace[1-2] ‘id slurm;id munge’
 # might not need ohpc-slurm-client here, just server
-pdsh -w mace[1-5] ‘yum -y install ohpc-slurm-client ohpc-slurm-server’
+pdsh -w mace[1-2] ‘yum -y install ohpc-slurm-client ohpc-slurm-server’
 for i in {1..5};do scp ~/fedconfig/munge.key mace$i:/etc/munge/munge.key;done
-pdsh -w mace[1-5] ‘systemctl restart munge’
+pdsh -w mace[1-2] ‘systemctl restart munge’
 for i in {1..5};do scp ~/fedconfig/slurm.conf mace$i:/etc/slurm;done
-pdsh -w mace[1-5] “systemctl enable slurmd;systemctl restart slurmd”
+pdsh -w mace[1-2] “systemctl enable slurmd;systemctl restart slurmd”
 
 # nfs mounts - do on each compute node
 ssh mace1
@@ -227,29 +234,32 @@ ssh mace1
 #mace.local:/home /home                   nfs     defaults        0 0
 vi /etc/fstab
 exit
-# repeat for mace2-5
+# repeat for mace2
 # back to mace
-pdsh -w mace[1-5] 'umount /home;mount /home'
+pdsh -w mace[1-2] 'umount /home;mount /home'
 
 # xrootd
-# on mace1-5
+# on mace1-2
 ssh mace1
 #mace.local:/xrootd /xrootd        nfs    defaults    0 0
 vi /etc/fstab
 exit
 # back to mace
-pdsh -w mace[1-5] ‘mkdir /xrootd;mount /xrootd;ls /xrootd’
+pdsh -w mace[1-2] ‘mkdir /xrootd;mount /xrootd;ls /xrootd’
 
 # ganglia
-pdsh -w mace[1-5] 'yum -y install ganglia-gmond-ohpc'
-for i in {1..5};do echo mace$i;scp ~/fedconfig/gmond.conf mace$i:/etc/ganglia;done
-pdsh -w mace[1-5] 'systemctl enable gmond'
-pdsh -w mace[1-5] 'systemctl start gmond'
+pdsh -w mace[1-2] 'yum -y install ganglia-gmond-ohpc'
+for i in {1..2};do echo mace$i;scp /etc/ganglia/gmond.conf mace$i:/etc/ganglia;done
+pdsh -w mace[1-2] 'systemctl enable gmond'
+pdsh -w mace[1-2] 'systemctl start gmond'
 
-# confirm user can ssh from mace to mace1-5 without password
+# confirm user can ssh from mace to mace1-2 without password
 su - babbott
-for i in {1..5};do ssh mace$i “uptime”;done
+for i in {1..2};do ssh mace$i “uptime”;done
 exit
 
 # user job
-pdsh -w mace[1-5] ‘yum -y install boinc-client boinc-client-doc’
+pdsh -w mace[1-2] ‘yum -y install boinc-client boinc-client-doc’
+
+# singularity
+pdsh -w mace[1-2] 'yum -y install singularity-ohpc'
