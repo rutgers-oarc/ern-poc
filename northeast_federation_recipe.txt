@@ -15,7 +15,7 @@ Scheduler: slurm 17.11
 Filesystem: xrootdfs with local nfs export
 Authz, authn: ldap, replace with shibboleth
 Other: ganglia, perfsonar, singularity
-Eval: ceph, openafs, stashcache, kubernetes
+Eval: cephfs, stashcache, kubernetes
 
 Issues:
 xrootd won’t mount until ldap is ready (test systemd fix)
@@ -107,8 +107,7 @@ systemctl restart munge
 #AccountingStorageHost=ern.hpc.rutgers.edu
 #NodeName=mace[1-2] Sockets=2 CoresPerSocket=4 ThreadsPerCore=1 State=UNKNOWN
 #PartitionName=DEFAULT DefaultTime=1:00:00 MaxTime=3-0 State=UP
-#PartitionName=mace Nodes=mace[1-2] Default=YES
-#PartitionName=ern Nodes=mace[1-2]
+#PartitionName=ern Nodes=mace[1-2] Default=YES
 #FederationParameters=fed_display
 vi /etc/slurm/slurm.conf
 systemctl enable slurmctld
