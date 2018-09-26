@@ -26,8 +26,7 @@
 130.156.250.14	edge
 
 # gcloud
-35.196.228.17	gcloud1-controller
-35.231.210.69	gcloud1-login1
+35.211.188.23	gcloud 23.188.211.35.bc.googleusercontent.com
 
 # acg
 130.111.39.212	acg ern-poc.acg.maine.edu
