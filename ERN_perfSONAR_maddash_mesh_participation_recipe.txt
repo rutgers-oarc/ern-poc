@@ -24,7 +24,7 @@ A. If you have an existing perfSONAR measurement host(s) with version 4.1:
 
   Step 2a: version 4.1 - On each of your measurement hosts run the following command:
 
- psconfig remote add --configure-archives "https://mesh.hpc.rutgers.edu/psconfig/ernmesh.json"
+ psconfig remote add --configure-archives "https://mesh.hpc.rutgers.edu/psconfig/northeastmesh.json"
 
 
   *Note: You can have multiple psconfig remote lines to participate in multiple meshes
@@ -43,7 +43,7 @@ configure_archives  1
 
  copy ern-poc/fedconfig/perfsonar.xml /etc/firewalld/services
 
-  Step 3: Reboot the measurement host so all services start properly and the firewall restarts
+  Step 4: Reboot the measurement host so all services start properly and the firewall restarts
 
 
 B. If you need to build a new measurement host from scratch you can follow the guidelines below to install perfSONAR on a dedicated hardware appliance:
