@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <service>
+  <port protocol="tcp" port="443"/>
   <port protocol="tcp" port="861"/>
   <port protocol="tcp" port="862"/>
   <port protocol="udp" port="8760-9960"/>
