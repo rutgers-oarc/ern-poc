@@ -95,10 +95,11 @@ systemctl restart sssd
 id babbott
 
 # slurm, munge
-# check that user slurm is already in ldap, munge probably not necessary
+# check that user slurm is already in ldap
 id slurm
 yum install ohpc-slurm-server ohpc-slurm-client
-# acquire munge.key, copy to /etc/munge
+# acquire munge.key from Rutgers
+cp munge.key /etc/munge
 chown munge:munge /etc/munge/munge.key
 chmod 400 /etc/munge/munge.key
 systemctl restart munge
