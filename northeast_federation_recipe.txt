@@ -30,18 +30,21 @@ Eval: stashcache, kubernetes
 # git clone ern repo
 git clone https://github.com/rutgers-oarc/ern-poc.git
 yum -y update
-# this one fails - did update do it already?  just skip it and install the other groups.
-#yum -y groupinstall “Infrastructure Server”
 yum -y groupinstall "Hardware Monitoring Utilities" "Performance Tools" "Development Tools" "Network File System Client" "Console Internet Tools" "Networking Tools" "System Administration Tools" "System Management" “Compatibility Libraries” “Platform Development”
 #
-# create local versions and append
+# create minimal hosts and hosts.allow - ansible will append later
 # skip these three for the compute nodes - do it once keys are set up from mace
-vi /etc/hosts-local
-cat /etc/hosts.local ~/ern-poc/fedconfig/hosts > /etc/hosts
-vi /etc/hosts.allow-local
-cat /etc/hosts.allow-local ~/ern-poc/fedconfig/hosts.allow > /etc/hosts.allow
-cat ~/ern-poc/fedconfig/hosts.deny > /etc/hosts.deny
+vi /etc/hosts
+vi /etc/hosts.allow
+vi /etc/hosts.deny
+
+# add to hosts.allow for automation etc.
+echo "Rutgers central ERN services" >> /etc/hosts.allow
+echo "all: 128.6.226.160/255.255.255.224" >> /etc/hosts.allow
 #
+# and block other stuff
+echo "all: all" >> /etc/hosts.deny
+
 yum -y install http://build.openhpc.community/OpenHPC:/1.3/CentOS_7/x86_64/ohpc-release-1.3-1.el7.x86_64.rpm
 yum -y update
 yum -y install ohpc-base
