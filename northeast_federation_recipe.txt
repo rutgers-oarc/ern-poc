@@ -81,13 +81,15 @@ ssh-keygen
 ssh-copy-id <node1>
 ssh-copy-id <node2>
 pdsh -w <node>[1-2] "uptime"
+# if <scheduler> is the gateway for the nodes
 echo "net.ipv4.ip_forward = 1" >> /etc/sysctl.conf
 sysctl -p /etc/sysctl.conf
 
 # ldap
 yum install sssd openldap-clients
 authconfig --updateall --enableldap --enableldapauth --ldapserver=ldap://ern.hpc.rutgers.edu:389 --ldapbasedn=dc=ufp,dc=hpc,dc=rutgers,dc=edu --enableldaptls --enableldapstarttls
-cp ~/ern-poc/fedconfig/ern_hpc_rutgers_edu_interm.cer /etc/openldap/cacerts
+# acquire the ldap cert from Rutgers OARC
+cp ern_hpc_rutgers_edu_interm.cer /etc/openldap/cacerts
 cacertdir_rehash /etc/openldap/cacerts/
 systemctl restart sssd
 id babbott
