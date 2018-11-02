@@ -33,7 +33,7 @@ yum -y update
 yum -y groupinstall "Hardware Monitoring Utilities" "Performance Tools" "Development Tools" "Network File System Client" "Console Internet Tools" "Networking Tools" "System Administration Tools" "System Management" “Compatibility Libraries” “Platform Development”
 #
 # create minimal hosts and hosts.allow - ansible will append later
-# skip these three for the compute nodes - do it once keys are set up from mace
+# skip these three for the compute nodes - do it once keys are set up from <scheduler>
 vi /etc/hosts
 vi /etc/hosts.allow
 vi /etc/hosts.deny
@@ -68,9 +68,10 @@ firewall-cmd --zone=public --add-rich-rule='rule family="ipv4" source address="a
 firewall-cmd --zone=public --add-masquerade
 firewall-cmd --zone=public --add-port=6817/tcp
 cp ~/ern-poc/fedconfig/perfsonar.xml /etc/firewalld/services/
-firewall-cmd --zone=public --add-service=perfsonar
 firewall-cmd --runtime-to-permanent
 firewall-cmd --reload
+firewall-cmd --zone=public --add-service=perfsonar
+firewall-cmd --runtime-to-permanent
 
 # this should leave you with ssh, perfsonar and 6817/tcp open in zone public.
 # these will be restricted with hosts.allow, ps limits and munge keys.
