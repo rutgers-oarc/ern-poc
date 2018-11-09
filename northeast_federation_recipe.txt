@@ -54,6 +54,7 @@ yum -y install ohpc-base
 sed -i s/SELINUX=enforcing/SELINUX=permissive/ /etc/selinux/config
 setenforce 0
 yum -y install nmap iptraf-ng iperf3 hdparm msr-tools mlocate trafshow yum-utils
+mkdir /scratch;chmod 1777 /scratch;ls -ld /scratch
 
 # done with bare metal install
 
