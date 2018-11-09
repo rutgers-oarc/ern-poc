@@ -1,5 +1,7 @@
+all: 127.0.0.1
+all: [::1]
 
-## create a hosts.allow with local entries and append the below
+# local entries above this line
 
 ## ERN members
 
@@ -20,3 +22,6 @@ all: 35.211.188.23
 
 # acg
 all: 130.111.46.212
+
+# fpga
+all: 165.230.19.201

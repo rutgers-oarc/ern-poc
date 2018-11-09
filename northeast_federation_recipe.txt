@@ -1,13 +1,17 @@
 The cast:
 
-ern.hpc.rutgers.edu - slurm database, ldap server, ganglia web, perfsonar web
+ern.hpc.rutgers.edu - slurm database, ldap server, ganglia web
 khan.hpc.rutgers.edu - cephfs cluster
+riker.hpc.rutgers.edu - perfsonar web
 
 mace - 3-node physical cluster at Rutgers
 mace - login node, scheduler, local nfs
 mace[1-2] - compute nodes
 
-~/fedconfig - site-specific config files - generate or get from Rutgers and modify
+~/ern-poc/fedconfig - config files - copy and modify for your site
+
+Note: you will need to acquire the ldap cert, munge key and ceph key from
+Rutgers OARC - these are not included in fedconfig
 
 OS: Centos 7.4
 OpenHPC recipe: 1.3.4
@@ -15,13 +19,14 @@ Scheduler: slurm 17.11
 Filesystem: cephfs, exported via nfs to compute nodes
 Authz, authn: ldap, replace with shibboleth
 Other: ganglia, perfsonar, singularity
-Eval: stashcache, kubernetes
+Eval: kubernetes
 
 
 # mace replaced with <scheduler> below
 # mace.local replaced with <scheduler.local>
 # mace1-2 replaced with <node1-2>
 # follow bare metal install for <scheduler> and <node1-2>
+
 
 ---
 # bare metal install
@@ -32,19 +37,16 @@ git clone https://github.com/rutgers-oarc/ern-poc.git
 yum -y update
 yum -y groupinstall "Hardware Monitoring Utilities" "Performance Tools" "Development Tools" "Network File System Client" "Console Internet Tools" "Networking Tools" "System Administration Tools" "System Management" “Compatibility Libraries” “Platform Development”
 #
-# create minimal hosts and hosts.allow - ansible will append later
-# skip these three for the compute nodes - do it once keys are set up from <scheduler>
+# copy templates and add local entries at the top
+# ansible will append later
+cp ~/ern-poc/fedconfig/hosts /etc
+cp ~/ern-poc/fedconfig/hosts.allow /etc
+cp ~/ern-poc/fedconfig/hosts.deny /etc
 vi /etc/hosts
 vi /etc/hosts.allow
 vi /etc/hosts.deny
 
-# add to hosts.allow for automation etc.
-echo "Rutgers central ERN services" >> /etc/hosts.allow
-echo "all: 128.6.226.160/255.255.255.224" >> /etc/hosts.allow
-#
-# and block other stuff
-echo "all: all" >> /etc/hosts.deny
-
+# OpenHPC
 yum -y install http://build.openhpc.community/OpenHPC:/1.3/CentOS_7/x86_64/ohpc-release-1.3-1.el7.x86_64.rpm
 yum -y update
 yum -y install ohpc-base
@@ -52,7 +54,9 @@ yum -y install ohpc-base
 sed -i s/SELINUX=enforcing/SELINUX=permissive/ /etc/selinux/config
 setenforce 0
 yum -y install nmap iptraf-ng iperf3 hdparm msr-tools mlocate trafshow yum-utils
+
 # done with bare metal install
+
 
 # on <scheduler>
 
@@ -63,20 +67,21 @@ firewall-cmd --info-zone=public
 # add internal interface to trusted zone
 # ZONE=trusted
 vi /etc/sysconfig/network-scripts/ifcfg-enp6s4f0
-# these are Rutgers-local networks - replace with your campus management network
+# add firewall rules for campus management networks
 firewall-cmd --zone=public --add-rich-rule='rule family="ipv4" source address="a.b.c.d/e" accept'
-firewall-cmd --zone=public --add-masquerade
 firewall-cmd --zone=public --add-port=6817/tcp
 cp ~/ern-poc/fedconfig/perfsonar.xml /etc/firewalld/services/
-firewall-cmd --runtime-to-permanent
 firewall-cmd --reload
 firewall-cmd --zone=public --add-service=perfsonar
+firewall-cmd --runtime-to-permanent
+# if <scheduler> is the gateway for the nodes
+firewall-cmd --zone=public --add-masquerade
 firewall-cmd --runtime-to-permanent
 
 # this should leave you with ssh, perfsonar and 6817/tcp open in zone public.
 # these will be restricted with hosts.allow, ps limits and munge keys.
 
-# node ssh keys
+# set up ssh keys to manage compute nodes
 ssh-keygen
 ssh-copy-id <node1>
 ssh-copy-id <node2>
@@ -98,7 +103,7 @@ id babbott
 # check that user slurm is already in ldap
 id slurm
 yum install ohpc-slurm-server ohpc-slurm-client
-# acquire munge.key from Rutgers
+# acquire munge.key from Rutgers OARC
 cp munge.key /etc/munge
 chown munge:munge /etc/munge/munge.key
 chmod 400 /etc/munge/munge.key
@@ -112,22 +117,28 @@ systemctl restart munge
 #PartitionName=DEFAULT DefaultTime=1:00:00 MaxTime=3-0 State=UP
 #PartitionName=ern Nodes=<node>[1-2] Default=YES
 #FederationParameters=fed_display
+#
+# Note: the OpenHPC install adds a ine for AccountingStorageType
+# comment it out:
+##AccountingStorageType=accounting_storage/filetxt
 vi /etc/slurm/slurm.conf
 systemctl enable slurmctld
 systemctl restart slurmctld
-# notify Bill of the cluster name and scheduler ip address,
+# notify Rutgers OARC of the cluster name and scheduler ip address,
 # wait for confirmation that the slurmdbd is modified
 systemctl restart slurmctld
 # send ssh keys
 # and usernames to set up in ldap
+# and add your information to the ERN google doc
 
 # cephfs
-# first, unmount /home
+# first, unmount /home.  on Centos 7 this requires stopping Network Manager,
+# or uncomment from /etc/fstab and reboot
 rpm -Uhv http://download.ceph.com/rpm-mimic/el7/noarch/ceph-release-1-1.el7.noarch.rpm
 yum clean all
 yum update
 yum install ceph-common
-# get khan.key from Bill
+# get khan.key from Rutgers OARC
 cp khan.key /etc/ceph
 chmod 400 /etc/ceph/khan.key
 # add this line to /etc/fstab:
@@ -153,27 +164,21 @@ exit
 
 # perfsonar
 yum install http://software.internet2.edu/rpms/el7/x86_64/main/RPMS/perfSONAR-repo-0.8-1.noarch.rpm
-yum install perfSONAR-repo-staging
 yum clean all
 yum install perfsonar-testpoint
 yum install perfsonar-toolkit-servicewatcher
 yum install perfsonar-toolkit-sysctl
 yum install perfsonar-toolkit-systemenv-testpoint
-# switch to ren limits
-cd /etc/pscheduler
-mv limits.conf limits.conf-orig
-cp /usr/share/doc/pscheduler/limit-examples/identifier-ip-cidr-list-url limits.conf
-chown root:pscheduler limits.conf
 pscheduler validate-limits
 # get mesh config from ern.hpc and the northeast mesh
-psconfig remote add --configure-archives "https://ern.hpc.rutgers.edu/psconfig/ernmesh.json"
+psconfig remote add --configure-archives "https://mesh.hpc.rutgers.edu/psconfig/ernmesh.json"
 psconfig remote add --configure-archives "https://mesh.hpc.rutgers.edu/psconfig/northeastmesh.json"
 # reboot the server and the services should start automatically
 
 # ganglia
 yum -y install ganglia-gmond-ohpc
 cp ~/ern-poc/fedconfig/gmond.conf /etc/ganglia
-# cluster name, udp send host
+# change cluster name, udp send host
 vi /etc/ganglia/gmond.conf
 systemctl enable gmond
 systemctl start gmond
@@ -190,30 +195,31 @@ firewall-cmd --runtime-to-permanent
 yum -y install singularity-ohpc
 
 
+# compute nodes
 
 # complete <node1-2> (bare metal and mace keys already done)
 # commands run from mace
 for i in {1..2};do scp /etc/hosts <node>$i:/etc;done
 for i in {1..2};do scp /etc/hosts.allow <node>$i:/etc;done
 for i in {1..2};do scp /etc/hosts.deny <node>$i:/etc;done
+# only if <scheduler> is gateway, else configure firewall
 pdsh -w <node>[1-2] ‘systemctl disable firewalld’
 
 # ldap
 pdsh -w <node>[1-2] 'yum -y install sssd openldap-clients'
 pdsh -w <node>[1-2] ‘mkdir /etc/openldap/cacerts’
-for i in {1..2};do echo <node>$i;scp ~/ern-poc/fedconfig/ern_hpc_rutgers_edu_interm.cer <node>$i:/etc/openldap/cacerts;ssh <node>$i ‘cacertdir_rehash /etc/openldap/cacerts/’;done
+for i in {1..2};do echo <node>$i;scp /etc/openldap/cacerts/ern_hpc_rutgers_edu_interm.cer <node>$i:/etc/openldap/cacerts;ssh <node>$i ‘cacertdir_rehash /etc/openldap/cacerts/’;done
 pdsh -w <node>[1-2] 'authconfig --updateall --enableldap --enableldapauth --ldapserver=ldap://ern.hpc.rutgers.edu:389 --ldapbasedn=dc=ufp,dc=hpc,dc=rutgers,dc=edu --enableldaptls --enableldapstarttls'
 pdsh -w <node>[1-2] ‘systemctl restart sssd’
 pdsh -w <node>[1-2] ‘id babbott’
 
 # slurm
-# should be 20003, 20002
-pdsh -w <node>[1-2] ‘id slurm;id munge’
-# might not need ohpc-slurm-client here, just server
+# should be 20003
+pdsh -w <node>[1-2] ‘id slurm’
 pdsh -w <node>[1-2] ‘yum -y install ohpc-slurm-client ohpc-slurm-server’
-for i in {1..2};do scp ~/fedconfig/munge.key <node>$i:/etc/munge/munge.key;done
-pdsh -w <node>[1-2] ‘systemctl restart munge’
-for i in {1..2};do scp ~/fedconfig/slurm.conf <node>$i:/etc/slurm;done
+for i in {1..2};do scp /etc/munge/munge.key <node>$i:/etc/munge/munge.key;done
+pdsh -w <node>[1-2] ‘chown munge:munge /etc/munge/munge.key;systemctl restart munge’
+for i in {1..2};do scp /etc/slurm/slurm.conf <node>$i:/etc/slurm;done
 pdsh -w <node>[1-2] “systemctl enable slurmd;systemctl restart slurmd”
 
 # nfs mounts - do on each compute node
@@ -225,15 +231,6 @@ exit
 # repeat for <node>2
 # back to <scheduler>
 pdsh -w <node>[1-2] 'umount /home;mount /home'
-
-# cephfs
-# on <node>1-2
-ssh <node>1
-# add to fstab
-#<scheduler.local>:/home /home        nfs    defaults    0 0
-vi /etc/fstab
-mount /home
-exit
 
 # ganglia
 pdsh -w <node>[1-2] 'yum -y install ganglia-gmond-ohpc'

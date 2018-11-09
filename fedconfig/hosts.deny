@@ -1,3 +1,3 @@
-## block any not explicitly allowed
+# block any not explicitly allowed
 
 all: all
