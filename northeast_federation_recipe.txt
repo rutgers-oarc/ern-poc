@@ -164,12 +164,12 @@ ssh <scheduler> “uptime”
 exit
 
 # perfsonar
-yum install http://software.internet2.edu/rpms/el7/x86_64/main/RPMS/perfSONAR-repo-0.8-1.noarch.rpm
+yum -y install http://software.internet2.edu/rpms/el7/x86_64/main/RPMS/perfSONAR-repo-0.8-1.noarch.rpm
 yum clean all
-yum install perfsonar-testpoint
-yum install perfsonar-toolkit-servicewatcher
-yum install perfsonar-toolkit-sysctl
-yum install perfsonar-toolkit-systemenv-testpoint
+yum -y install perfsonar-testpoint
+yum -y install perfsonar-toolkit-servicewatcher
+yum -y install perfsonar-toolkit-sysctl
+yum -y install perfsonar-toolkit-systemenv-testpoint
 pscheduler validate-limits
 # get mesh config from ern.hpc and the northeast mesh
 psconfig remote add --configure-archives "https://mesh.hpc.rutgers.edu/psconfig/ernmesh.json"
