@@ -217,7 +217,7 @@ pdsh -w <node>[1-2] ‘id babbott’
 # slurm
 # should be 20003
 pdsh -w <node>[1-2] ‘id slurm’
-pdsh -w <node>[1-2] ‘yum -y install ohpc-slurm-client ohpc-slurm-server’
+pdsh -w <node>[1-2] ‘yum -y install ohpc-slurm-client’
 for i in {1..2};do scp /etc/munge/munge.key <node>$i:/etc/munge/munge.key;done
 pdsh -w <node>[1-2] ‘chown munge:munge /etc/munge/munge.key;systemctl restart munge’
 for i in {1..2};do scp /etc/slurm/slurm.conf <node>$i:/etc/slurm;done
